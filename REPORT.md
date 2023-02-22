@@ -54,6 +54,19 @@ round-robin fashion that takes the thread from the ready queue that has been
 in the queue the longest and schedules it to run next. Uthread_exit works in 
 a very similar fashion to uthread_yeild except for it marks the thread as 
 exited so the idle thread can destroy its stack after it is switched. 
+###### Semaphore API:
+The semaphore API was rather simple regarding the implementation. The data
+structure chosen was a struct that held the number of resources and the 
+waiting list of queues that needed access to the resource if there weren't
+any remaining. Using the queue as a data structure was very useful since a 
+FIFO line was exactly what was needed for resource sharing. The sem up and 
+down methods were completed using the queue create and destroy functions, 
+along with a malloc and free respectively. The sem down function used the count
+variable that the semaphore struct held to run a while loop until a resource
+opens up. This is don by blocking the thread. This makes sure that the corner
+case where thread starvation doesn't occur. The sem up function checked if 
+the waiting list had any thread waiting and unblocks the thread waiting. 
+Choosing this data structure made the implementation of each function simpler.
 ###### Preemption:
 To start adding preemption we need to set a few things up. First, we need to 
 use sigaction to direct the virtual alarm signal to the signal handler. We 
