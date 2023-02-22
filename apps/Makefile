@@ -4,7 +4,8 @@ programs := \
 	uthread_hello.x \
 	uthread_yield.x \
 	sem_simple.x \
-	test_preempt.x 
+	test_preempt.x \
+	sem_prime.x
 
 # User-level thread library
 UTHREADLIB := libuthread

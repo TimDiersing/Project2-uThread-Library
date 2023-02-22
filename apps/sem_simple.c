@@ -52,7 +52,7 @@ int main(void)
 	sem2 = sem_create(0);
 	sem3 = sem_create(0);
 
-	uthread_run(false, thread1, NULL);
+	uthread_run(true, thread1, NULL);
 
 	sem_destroy(sem1);
 	sem_destroy(sem2);

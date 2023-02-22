@@ -35,25 +35,7 @@ struct uthread_tcb *uthread_current(void)
 
 void uthread_yield(void)
 {
-    // struct uthread_tcb* prevThread;
-    // prevThread = currentThread;
-
-    // if (prevThread -> state != BLOCKED)
-    //     prevThread -> state = READY;
-
-    // queue_enquque(readyQueue, prevThread);
-
-    // queue_dequeue(readyQueue, (void**)&currentThread)
-
-    // while (currentThread -> state == BLOCKED) {
-
-    //     queue_enqueue(readyQueue, currentThread);
-    //     queue_dequeue(readyQueue, (void**)&currentThread)
-    // }
-
-    // uthread_ctx_switch(prevThread, currentThread);
-
-
+    preempt_disable();
     // Put the running thread back into the queue and set to ready if its not blocked
     if (currentThread -> state != BLOCKED)
     {
@@ -78,6 +60,7 @@ void uthread_exit(void)
 
 int uthread_create(uthread_func_t func, void *arg)
 {
+    preempt_disable();
     // Create new empty thread
     struct uthread_tcb* thread;
     thread = malloc(sizeof(struct uthread_tcb));
@@ -89,7 +72,6 @@ int uthread_create(uthread_func_t func, void *arg)
     if (thread -> stack == NULL)
         return -1;
 
-    preempt_disable();
     // Initizalize new thread
     if (uthread_ctx_init(&thread -> ctx, thread -> stack, func, arg) != 0)
         return -1;
@@ -120,8 +102,6 @@ int uthread_run(bool preempt, uthread_func_t func, void *arg)
 {
     preempt_start(preempt);
 
-    preempt_disable();
-
     // Create new queue for threads
     readyQueue = queue_create();
     if (readyQueue == NULL)
@@ -130,11 +110,12 @@ int uthread_run(bool preempt, uthread_func_t func, void *arg)
     // Create the initial thread with given function and arguments
     if (uthread_create(func, arg) != 0)
         return -1;
+    
+    preempt_disable();
 
     // Start the idle loop to schedule threads
     while (1) 
     {
-        preempt_disable();
         // Iterate through the queue to delete exited threads and free their stacks
         queue_iterate(readyQueue, deleteExited);
 
@@ -144,28 +125,22 @@ int uthread_run(bool preempt, uthread_func_t func, void *arg)
             if (queue_dequeue(readyQueue, (void**)&currentThread) != 0)
                 return -1;
 
-            while (currentThread -> state == BLOCKED) {
-                queue_enqueue(readyQueue, currentThread);
-
-                if (queue_dequeue(readyQueue, (void**)&currentThread) != 0)
-                    return -1;
-            }
-
             currentThread -> state = RUNNING;
 
-            //preempt_enable();
+            preempt_enable();
             uthread_ctx_switch(&idleThread, &(currentThread -> ctx));
         }
 
         // Break out of idle loop if there are no more threads to run
         else
         {
-            if (preempt)
-                preempt_stop();
-
             break;
         }
     }
+
+    // Restore the procces to its intial state
+    if (preempt)
+        preempt_stop();
 
     if (queue_destroy(readyQueue) != 0)
         return -1;
@@ -175,12 +150,14 @@ int uthread_run(bool preempt, uthread_func_t func, void *arg)
 
 void uthread_block(void)
 {
+    // Chance the threads state to blocked and yeild to the next thread
     currentThread -> state = BLOCKED;
     uthread_yield();
 }
 
 void uthread_unblock(struct uthread_tcb *uthread)
 {
+    // Unblock the thread by putting it back on the ready queue
     uthread -> state = READY;
     queue_enqueue(readyQueue, uthread);
 }
